@@ -1,0 +1,5 @@
+# Generated run artifacts
+jobs.xlsx
+digest.html
+__pycache__/
+*.pyc
