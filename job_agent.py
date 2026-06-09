@@ -64,7 +64,7 @@ RELEVANCE_KEYWORDS = ["security", "cyber", "exposure", "cloud", "saas",
 LOCATION_FILTER = ["israel", "tel aviv", "remote"]
 
 MIN_SCORE = 6          # 0-10; only email roles Claude scores >= this
-USE_CLAUDE = True      # set False to skip AI scoring (keyword-only mode)
+USE_CLAUDE = False     # set False to skip AI scoring (keyword-only mode)
 ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"   # cheap + fast for scoring
 
 # --- Secrets: prefer environment variables over hard-coding ---
