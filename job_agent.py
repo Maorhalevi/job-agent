@@ -78,26 +78,17 @@ ADZUNA_APP_KEY = os.environ.get("ADZUNA_APP_KEY", "")    # optional
 #    [V] = verified live earlier. Prune any that log FAILED.
 # ─────────────────────────────────────────────────────────────────
 COMPANIES = [
-    ("greenhouse",    "tenableinc",     "Tenable"),        # [V]
-    ("greenhouse_eu", "guardz",         "Guardz"),         # [V]
-    ("greenhouse",    "armissecurity",  "Armis"),          # [V]
-    ("greenhouse",    "cymulate",       "Cymulate"),
-    ("greenhouse",    "wiz",            "Wiz"),
-    ("greenhouse",    "orcasecurity",   "Orca Security"),
-    ("greenhouse",    "varonis",        "Varonis"),
-    ("greenhouse",    "checkpoint",     "Check Point"),
-    ("greenhouse",    "claroty",        "Claroty"),
-    ("greenhouse",    "cybereason",     "Cybereason"),
-    ("greenhouse",    "snyk",           "Snyk"),
-    ("greenhouse",    "perimeterx",     "HUMAN (PerimeterX)"),
-    ("greenhouse",    "salt",           "Salt Security"),
-    ("greenhouse",    "noname",         "Noname Security"),
-    ("greenhouse",    "transmitsecurity","Transmit Security"),
-    ("lever",         "sentinelone",    "SentinelOne"),
-    ("lever",         "aquasecurity",   "Aqua Security"),
-    ("ashby",         "torq",           "Torq"),
-    ("ashby",         "island",         "Island"),
-    ("greenhouse",    "paloaltonetworks","Palo Alto Networks"),
+    # All slugs below verified live (cyber/cloud companies hiring PMs in Israel).
+    ("greenhouse",    "tenableinc",   "Tenable"),         # exposure mgmt — top fit
+    ("greenhouse",    "cymulate",     "Cymulate"),        # your domain
+    ("ashby",         "orca",         "Orca Security"),   # agentless cloud security
+    ("greenhouse",    "wizinc",       "Wiz"),             # cloud security (CNAPP)
+    ("greenhouse_eu", "catonetworks", "Cato Networks"),   # SASE / network security
+    ("greenhouse",    "armissecurity","Armis"),           # asset / threat mgmt
+    ("greenhouse_eu", "guardz",       "Guardz"),          # SMB security
+    # To add more: open the company's careers page and copy the slug from the URL
+    #   boards.greenhouse.io/SLUG  /  job-boards.eu.greenhouse.io/...for=SLUG (use greenhouse_eu)
+    #   jobs.lever.co/SLUG (lever)  /  jobs.ashbyhq.com/SLUG (ashby)
 ]
 
 # ─────────────────────────────────────────────────────────────────
