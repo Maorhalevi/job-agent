@@ -36,12 +36,40 @@ import requests
 # 1. CONFIG
 # ─────────────────────────────────────────────────────────────────
 CANDIDATE_PROFILE = """
-Product Manager, 5+ years, cybersecurity & technical analysis.
-Core expertise: Exposure Management, Cloud Protection, attack-surface
-reduction, automated remediation (Auto-Mitigation / Remediation Plan),
-API-driven workflows, SaaS security (CASB), Design Partner programs.
-Seniority target: Senior PM / Principal / Lead PM.
-Background companies: Cymulate, Proofpoint.
+Maor Halevi — Product Manager · Cybersecurity. 5+ years experience.
+
+PROFILE: Strategic Product Manager with 5+ years in cybersecurity and technical
+analysis. Expertise in Exposure Management, Cloud Protection, and API-driven
+workflows. Bridges technical engineering with business goals, delivering
+automated remediation for complex security environments.
+
+EXPERIENCE
+- Product Manager, Exposure Management @ Cymulate (Jun 2024 - Mar 2026):
+  Led research and integration of Cloud Protection capabilities into the platform;
+  enriched the Exposure Management offering (attack-surface reduction); drove
+  Auto-Mitigation and Remediation Plan from planning to launch (action-oriented
+  platform); partnered with large/mid enterprise customers; led Design Partner
+  program.
+- Technical Product Manager @ Proofpoint (Jun 2022 - Apr 2024):
+  Expanded the CASB product's SaaS application protection offering (market trends,
+  customer needs, competitive landscape); led API research and integration
+  understanding from a business angle; owned features end-to-end with engineering.
+- Inbound Product Manager @ Menorah Mivtachim (2020 - Jun 2022):
+  Product Owner for health & insurance systems; requirements + cross-dept integration.
+- Full Stack Developer @ Menorah Mivtachim (2018 - 2020): Big Data (Elasticsearch,
+  Kibana), end-to-end full-stack.
+- Founder @ MindCETEX (2015 - 2018): AI-based EdTech app, full product lifecycle.
+- Full Stack Developer @ Sapiens (2014 - 2017): Java ERP/insurance modules.
+
+DOMAINS: Cybersecurity & SaaS Security, Exposure Management, Cloud Protection,
+API Strategy & Integrations.
+PRODUCT SKILLS: Product Strategy, Roadmap Prioritization, Design Partner Programs,
+Jira, Confluence, Pendo, Figma, Postman.
+TECHNICAL: SQL, APIs, ERD, AWS, Cloud Infrastructure, Elasticsearch, Kibana, Java.
+AI TOOLS: Cursor, Claude, ChatGPT, v0, Lovable, Gemini, Perplexity, Copilot.
+
+TARGET: Senior / Principal / Lead Product Manager in cybersecurity or cloud.
+LOCATION: Israel (Tel Aviv area) or remote open to Israel / EMEA.
 """
 
 TITLE_MUST_INCLUDE = ["product manager", "product owner", "product lead",
@@ -97,27 +125,42 @@ COMPANIES = [
 TIMEOUT = 25
 UA = {"User-Agent": "personal-job-agent/2.0"}
 
-def _job(title, location, url, company, contact=""):
+import re, html as _html
+def _strip(text):
+    """Strip HTML tags/entities and collapse whitespace; cap length for cost."""
+    if not text:
+        return ""
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = _html.unescape(text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text[:1800]
+
+def _job(title, location, url, company, desc="", contact=""):
     return {"title": (title or "").strip(), "location": (location or "").strip(),
-            "url": url or "", "company": company, "contact": contact}
+            "url": url or "", "company": company,
+            "desc": _strip(desc), "contact": contact}
 
 def fetch_greenhouse(slug, company):
-    url = f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs?content=false"
+    url = f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs?content=true"
     r = requests.get(url, headers=UA, timeout=TIMEOUT); r.raise_for_status()
     return [_job(j.get("title"), (j.get("location") or {}).get("name"),
-                 j.get("absolute_url"), company) for j in r.json().get("jobs", [])]
+                 j.get("absolute_url"), company, j.get("content"))
+            for j in r.json().get("jobs", [])]
 
 def fetch_lever(slug, company):
     url = f"https://api.lever.co/v0/postings/{slug}?mode=json"
     r = requests.get(url, headers=UA, timeout=TIMEOUT); r.raise_for_status()
     return [_job(j.get("text"), (j.get("categories") or {}).get("location"),
-                 j.get("hostedUrl"), company) for j in r.json()]
+                 j.get("hostedUrl"), company,
+                 j.get("descriptionPlain") or j.get("description"))
+            for j in r.json()]
 
 def fetch_ashby(slug, company):
     url = f"https://api.ashbyhq.com/posting-api/job-board/{slug}"
     r = requests.get(url, headers=UA, timeout=TIMEOUT); r.raise_for_status()
-    return [_job(j.get("title"), j.get("location"),
-                 j.get("jobUrl"), company) for j in r.json().get("jobs", [])]
+    return [_job(j.get("title"), j.get("location"), j.get("jobUrl"), company,
+                 j.get("descriptionPlain") or j.get("description"))
+            for j in r.json().get("jobs", [])]
 
 FETCHERS = {"greenhouse": fetch_greenhouse, "greenhouse_eu": fetch_greenhouse,
             "lever": fetch_lever, "ashby": fetch_ashby}
@@ -186,25 +229,38 @@ def prefilter(jobs):
 # 5. SCORING  (0-100 %)
 # ─────────────────────────────────────────────────────────────────
 def score_with_claude(jobs):
+    """Score each role 0-100 by matching the FULL job description to the CV.
+    Processed in batches to keep each request small and reliable."""
     from anthropic import Anthropic
     client = Anthropic(api_key=ANTHROPIC_API_KEY)
-    listing = "\n".join(f"{i}. {j['title']} @ {j['company']} ({j['location']})"
-                        for i, j in enumerate(jobs))
-    prompt = (
-        f"You are a recruiting assistant. Candidate profile:\n{CANDIDATE_PROFILE}\n\n"
-        f"For each job, give a match score 0-100 (100 = perfect fit) and a reason "
-        f"of max 10 words. Return ONLY a JSON array: "
-        f'[{{"i":<index>,"score":<0-100>,"why":"<reason>"}}]. No prose, no markdown.\n\n'
-        f"Jobs:\n{listing}"
-    )
-    msg = client.messages.create(model=ANTHROPIC_MODEL, max_tokens=2000,
-                                 messages=[{"role": "user", "content": prompt}])
-    text = "".join(b.text for b in msg.content if b.type == "text").strip()
-    text = text.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-    scores = {d["i"]: d for d in json.loads(text)}
-    for i, j in enumerate(jobs):
-        s = scores.get(i, {"score": 0, "why": ""})
-        j["score"], j["why"] = int(s["score"]), s["why"]
+    BATCH = 8
+    for start in range(0, len(jobs), BATCH):
+        batch = jobs[start:start + BATCH]
+        blocks = "\n\n".join(
+            f"[{i}] {j['title']} @ {j['company']} ({j['location']})\n"
+            f"Description: {j['desc'] or '(no description available)'}"
+            for i, j in enumerate(batch))
+        prompt = (
+            f"You are a recruiting assistant. Here is the candidate's CV:\n"
+            f"{CANDIDATE_PROFILE}\n\n"
+            f"For each job below, judge how well the candidate's CV matches the "
+            f"role's actual requirements (seniority, domain, skills). Give a match "
+            f"score 0-100 (100 = strong fit) and a reason of max 12 words citing "
+            f"the key matching or missing requirement.\n"
+            f'Return ONLY a JSON array: [{{"i":<index>,"score":<0-100>,"why":"..."}}]. '
+            f"No prose, no markdown.\n\nJobs:\n{blocks}")
+        try:
+            msg = client.messages.create(model=ANTHROPIC_MODEL, max_tokens=1500,
+                                         messages=[{"role": "user", "content": prompt}])
+            text = "".join(b.text for b in msg.content if b.type == "text").strip()
+            text = text.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+            scores = {d["i"]: d for d in json.loads(text)}
+        except Exception as e:
+            print(f"  scoring batch {start} failed: {e}")
+            scores = {}
+        for i, j in enumerate(batch):
+            s = scores.get(i, {"score": 0, "why": "not scored"})
+            j["score"], j["why"] = int(s["score"]), s["why"]
     return sorted(jobs, key=lambda x: x["score"], reverse=True)
 
 def score_with_keywords(jobs):
