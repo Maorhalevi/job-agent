@@ -1,0 +1,7 @@
+# Generated output of job_agent.py — regenerated every run
+jobs.xlsx
+digest.html
+
+# Python
+__pycache__/
+*.pyc
