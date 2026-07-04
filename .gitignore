@@ -1,0 +1,7 @@
+# Generated daily job-digest artifacts (produced by job_agent.py at runtime)
+digest.html
+jobs.xlsx
+
+# Python
+__pycache__/
+*.pyc
