@@ -1,0 +1,9 @@
+# Generated daily outputs from job_agent.py — regenerated each run, not source
+jobs.xlsx
+digest.html
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
