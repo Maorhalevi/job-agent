@@ -1,0 +1,9 @@
+# Generated output artifacts from job_agent.py routine runs
+jobs.xlsx
+digest.html
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
