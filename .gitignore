@@ -1,0 +1,9 @@
+# Generated output artifacts from job_agent.py (regenerated each run)
+jobs.xlsx
+digest.html
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
