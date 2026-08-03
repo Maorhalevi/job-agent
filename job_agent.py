@@ -93,6 +93,7 @@ USE_CLAUDE = True           # AI scoring (needs ANTHROPIC_API_KEY)
 ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
 
 OUTPUT_FILE = "jobs.xlsx"
+HTML_FILE = "digest.html"   # emailed inline by the daily routine
 
 # --- Secrets (set as environment variables in the routine) ---
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
@@ -319,6 +320,77 @@ def write_excel(jobs, path=OUTPUT_FILE):
     print(f"Wrote {path} with {len(jobs)} rows")
 
 # ─────────────────────────────────────────────────────────────────
+# 6b. HTML OUTPUT  (emailed inline by the daily routine)
+# ─────────────────────────────────────────────────────────────────
+def write_html(jobs, path=HTML_FILE):
+    """Write digest.html — an email-friendly HTML table of today's matches.
+    Uses inline styles so it renders correctly in Gmail and other clients."""
+    today = dt.date.today().strftime("%A, %d %b %Y")
+    esc = _html.escape
+
+    def cell(content, extra=""):
+        return (f'<td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;'
+                f'font-family:Arial,Helvetica,sans-serif;font-size:13px;'
+                f'color:#111827;vertical-align:top;{extra}">{content}</td>')
+
+    rows = []
+    for j in jobs:
+        pct = int(round(j.get("score", 0)))
+        link = (f'<a href="{esc(j["url"])}" style="color:#1A4FD6;'
+                f'text-decoration:none;font-weight:bold;">Open &#10142;</a>'
+                if j.get("url") else "")
+        rows.append(
+            "<tr>"
+            + cell(f'<strong>{esc(j["company"])}</strong>')
+            + cell(esc(j["title"]))
+            + cell(esc(j["location"]) or "&mdash;")
+            + cell(f'{pct}%', "font-weight:bold;color:#16263F;white-space:nowrap;")
+            + cell(esc(j.get("why", "")))
+            + cell(link, "white-space:nowrap;")
+            + "</tr>"
+        )
+
+    if jobs:
+        table = (
+            '<table role="presentation" cellpadding="0" cellspacing="0" '
+            'style="border-collapse:collapse;width:100%;max-width:820px;'
+            'border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">'
+            '<thead><tr style="background:#16263F;">'
+            + "".join(
+                f'<th style="padding:11px 12px;text-align:left;color:#FFFFFF;'
+                f'font-family:Arial,Helvetica,sans-serif;font-size:12px;'
+                f'text-transform:uppercase;letter-spacing:.03em;">{h}</th>'
+                for h in ("Company", "Role", "Location", "Match", "Why it fits", "Apply"))
+            + "</tr></thead><tbody>" + "".join(rows) + "</tbody></table>"
+        )
+        intro = (f'<p style="font-family:Arial,Helvetica,sans-serif;font-size:14px;'
+                 f'color:#374151;">Found <strong>{len(jobs)}</strong> strong '
+                 f'Product Manager match{"es" if len(jobs) != 1 else ""} today.</p>')
+    else:
+        table = ""
+        intro = ('<p style="font-family:Arial,Helvetica,sans-serif;font-size:14px;'
+                 'color:#374151;">No strong Product Manager matches were found today. '
+                 'The agent ran successfully.</p>')
+
+    doc = (
+        '<!DOCTYPE html><html><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1"></head>'
+        '<body style="margin:0;padding:24px;background:#F9FAFB;">'
+        '<div style="max-width:820px;margin:0 auto;">'
+        '<h1 style="font-family:Arial,Helvetica,sans-serif;font-size:20px;'
+        'color:#16263F;margin:0 0 4px;">Daily PM Jobs</h1>'
+        f'<p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;'
+        f'color:#6B7280;margin:0 0 16px;">{today} &middot; Cybersecurity / Cloud &middot; Israel</p>'
+        f'{intro}{table}'
+        '<p style="font-family:Arial,Helvetica,sans-serif;font-size:11px;'
+        'color:#9CA3AF;margin-top:20px;">Generated automatically by job_agent.py.</p>'
+        '</div></body></html>'
+    )
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(doc)
+    print(f"Wrote {path} with {len(jobs)} rows")
+
+# ─────────────────────────────────────────────────────────────────
 # 7. MAIN
 # ─────────────────────────────────────────────────────────────────
 def main():
@@ -343,6 +415,7 @@ def main():
         print(f"Roles >= {MIN_SCORE_PCT}%: {len(jobs)}")
 
     write_excel(jobs)
+    write_html(jobs)
 
 if __name__ == "__main__":
     main()
