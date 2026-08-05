@@ -93,6 +93,7 @@ USE_CLAUDE = True           # AI scoring (needs ANTHROPIC_API_KEY)
 ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
 
 OUTPUT_FILE = "jobs.xlsx"
+HTML_FILE = "digest.html"
 
 # --- Secrets (set as environment variables in the routine) ---
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
@@ -319,6 +320,69 @@ def write_excel(jobs, path=OUTPUT_FILE):
     print(f"Wrote {path} with {len(jobs)} rows")
 
 # ─────────────────────────────────────────────────────────────────
+# 6b. HTML DIGEST OUTPUT  (emailed by the routine)
+# ─────────────────────────────────────────────────────────────────
+def write_html(jobs, path=HTML_FILE):
+    """Write a self-contained HTML digest of today's matched roles.
+    The routine reads this file and emails its contents."""
+    today = dt.date.today().strftime("%b %d, %Y")
+
+    def esc(s):
+        return _html.escape(str(s or ""))
+
+    if jobs:
+        rows = []
+        for j in jobs:
+            pct = int(round(j["score"]))
+            url = esc(j["url"])
+            link = (f'<a href="{url}" style="color:#1A4FD6;text-decoration:none;'
+                    f'font-weight:600">Open&nbsp;&#10148;</a>' if j["url"] else "")
+            rows.append(
+                "<tr>"
+                f'<td style="padding:10px 12px;border-bottom:1px solid #eee;font-weight:600">{esc(j["company"])}</td>'
+                f'<td style="padding:10px 12px;border-bottom:1px solid #eee">{esc(j["title"])}</td>'
+                f'<td style="padding:10px 12px;border-bottom:1px solid #eee;color:#555">{esc(j["location"])}</td>'
+                f'<td style="padding:10px 12px;border-bottom:1px solid #eee;text-align:center;font-weight:700;color:#16263F">{pct}%</td>'
+                f'<td style="padding:10px 12px;border-bottom:1px solid #eee;color:#555">{esc(j["why"])}</td>'
+                f'<td style="padding:10px 12px;border-bottom:1px solid #eee">{link}</td>'
+                "</tr>")
+        body = (
+            '<table style="border-collapse:collapse;width:100%;'
+            'font-family:Arial,Helvetica,sans-serif;font-size:14px">'
+            '<thead><tr style="background:#16263F;color:#fff;text-align:left">'
+            '<th style="padding:10px 12px">Company</th>'
+            '<th style="padding:10px 12px">Role</th>'
+            '<th style="padding:10px 12px">Location</th>'
+            '<th style="padding:10px 12px;text-align:center">Match</th>'
+            '<th style="padding:10px 12px">Why it fits</th>'
+            '<th style="padding:10px 12px">Apply</th>'
+            "</tr></thead><tbody>" + "".join(rows) + "</tbody></table>")
+        heading = f"{len(jobs)} matched Product Manager role(s) &mdash; {today}"
+    else:
+        body = ('<p style="font-family:Arial,Helvetica,sans-serif;font-size:14px;'
+                'color:#555">No strong matches found today — the agent ran '
+                'successfully but nothing cleared the match threshold.</p>')
+        heading = f"No strong matches &mdash; {today}"
+
+    doc = (
+        '<!DOCTYPE html><html><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1"></head>'
+        '<body style="margin:0;padding:24px;background:#f4f6f9">'
+        '<div style="max-width:820px;margin:0 auto;background:#fff;border-radius:10px;'
+        'overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08)">'
+        '<div style="padding:20px 24px;background:#16263F;color:#fff;'
+        'font-family:Arial,Helvetica,sans-serif">'
+        '<h1 style="margin:0;font-size:20px">Daily PM Jobs</h1>'
+        f'<div style="margin-top:4px;font-size:13px;opacity:.85">{heading}</div>'
+        '</div>'
+        f'<div style="padding:20px 24px">{body}</div>'
+        '</div></body></html>')
+
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(doc)
+    print(f"Wrote {path} with {len(jobs)} rows")
+
+# ─────────────────────────────────────────────────────────────────
 # 7. MAIN
 # ─────────────────────────────────────────────────────────────────
 def main():
@@ -343,6 +407,7 @@ def main():
         print(f"Roles >= {MIN_SCORE_PCT}%: {len(jobs)}")
 
     write_excel(jobs)
+    write_html(jobs)
 
 if __name__ == "__main__":
     main()
