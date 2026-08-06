@@ -93,6 +93,7 @@ USE_CLAUDE = True           # AI scoring (needs ANTHROPIC_API_KEY)
 ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
 
 OUTPUT_FILE = "jobs.xlsx"
+HTML_FILE   = "digest.html"   # email-friendly HTML digest sent by the routine
 
 # --- Secrets (set as environment variables in the routine) ---
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
@@ -271,7 +272,73 @@ def score_with_keywords(jobs):
     return sorted(jobs, key=lambda x: x["score"], reverse=True)
 
 # ─────────────────────────────────────────────────────────────────
-# 6. EXCEL OUTPUT
+# 6a. HTML DIGEST  (emailed by the routine)
+# ─────────────────────────────────────────────────────────────────
+def write_html(jobs, path=HTML_FILE):
+    """Write an email-friendly HTML digest of today's matched roles.
+    The routine reads this file and emails its contents via Gmail."""
+    from html import escape
+    today = dt.date.today().isoformat()
+
+    if not jobs:
+        body = (
+            '<p style="font:15px Arial,sans-serif;color:#16263F;">'
+            'No strong matches were found today — the agent ran successfully.</p>')
+        html_doc = (
+            '<!DOCTYPE html><html><head><meta charset="utf-8"></head>'
+            '<body style="margin:0;padding:24px;background:#F4F6FA;">'
+            f'<h2 style="font:600 20px Arial,sans-serif;color:#16263F;margin:0 0 4px;">'
+            f'Daily PM Jobs — {escape(today)}</h2>{body}</body></html>')
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(html_doc)
+        print(f"Wrote {path} with 0 rows")
+        return
+
+    rows = []
+    for j in jobs:
+        pct = f'{int(j.get("score", 0))}%'
+        link = (f'<a href="{escape(j["url"])}" '
+                f'style="color:#1A4FD6;text-decoration:none;font-weight:600;">Open &rsaquo;</a>'
+                if j.get("url") else "")
+        rows.append(
+            '<tr style="border-bottom:1px solid #E3E8F0;">'
+            f'<td style="padding:10px 12px;font:14px Arial,sans-serif;color:#16263F;">'
+            f'{escape(j["company"])}</td>'
+            f'<td style="padding:10px 12px;font:14px Arial,sans-serif;color:#16263F;">'
+            f'{escape(j["title"])}</td>'
+            f'<td style="padding:10px 12px;font:14px Arial,sans-serif;color:#4A5A73;">'
+            f'{escape(j["location"])}</td>'
+            f'<td style="padding:10px 12px;font:600 14px Arial,sans-serif;color:#1A7F37;'
+            f'text-align:center;">{pct}</td>'
+            f'<td style="padding:10px 12px;font:13px Arial,sans-serif;color:#4A5A73;">'
+            f'{escape(str(j.get("why", "")))}</td>'
+            f'<td style="padding:10px 12px;font:14px Arial,sans-serif;">{link}</td>'
+            '</tr>')
+
+    header_cells = "".join(
+        f'<th style="padding:10px 12px;text-align:left;font:600 13px Arial,sans-serif;'
+        f'color:#FFFFFF;">{h}</th>'
+        for h in ["Company", "Role", "Location", "Match", "Why it fits", "Apply"])
+
+    html_doc = (
+        '<!DOCTYPE html><html><head><meta charset="utf-8"></head>'
+        '<body style="margin:0;padding:24px;background:#F4F6FA;">'
+        f'<h2 style="font:600 20px Arial,sans-serif;color:#16263F;margin:0 0 2px;">'
+        f'Daily PM Jobs — {escape(today)}</h2>'
+        f'<p style="font:13px Arial,sans-serif;color:#4A5A73;margin:0 0 16px;">'
+        f'{len(jobs)} matched role(s), sorted by fit.</p>'
+        '<table style="border-collapse:collapse;width:100%;max-width:820px;'
+        'background:#FFFFFF;border-radius:8px;overflow:hidden;">'
+        f'<thead><tr style="background:#16263F;">{header_cells}</tr></thead>'
+        f'<tbody>{"".join(rows)}</tbody></table>'
+        '</body></html>')
+
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(html_doc)
+    print(f"Wrote {path} with {len(jobs)} rows")
+
+# ─────────────────────────────────────────────────────────────────
+# 6b. EXCEL OUTPUT
 # ─────────────────────────────────────────────────────────────────
 def write_excel(jobs, path=OUTPUT_FILE):
     from openpyxl import Workbook
@@ -343,6 +410,7 @@ def main():
         print(f"Roles >= {MIN_SCORE_PCT}%: {len(jobs)}")
 
     write_excel(jobs)
+    write_html(jobs)
 
 if __name__ == "__main__":
     main()
