@@ -1,0 +1,3 @@
+# Generated daily-run artifacts (produced by job_agent.py and the delivery routine)
+jobs.xlsx
+digest.html
