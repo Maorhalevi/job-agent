@@ -1,0 +1,7 @@
+# Generated daily output artifacts
+digest.html
+jobs.xlsx
+
+# Python
+__pycache__/
+*.pyc
