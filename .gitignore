@@ -1,0 +1,7 @@
+# Generated output files
+digest.html
+jobs.xlsx
+
+# Python
+__pycache__/
+*.pyc
