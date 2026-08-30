@@ -1,0 +1,12 @@
+# Generated daily job-agent outputs
+digest.html
+jobs.xlsx
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Environment / secrets
+.env
