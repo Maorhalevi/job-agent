@@ -1,0 +1,9 @@
+# Generated output files (regenerated on every run)
+digest.html
+jobs.xlsx
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
