@@ -1,0 +1,7 @@
+# Generated job-agent output artifacts (regenerated on every run)
+digest.html
+jobs.xlsx
+
+# Python
+__pycache__/
+*.pyc
