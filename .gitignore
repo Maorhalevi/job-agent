@@ -1,0 +1,9 @@
+# Generated run artifacts (produced by job_agent.py / daily routine)
+jobs.xlsx
+digest.html
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
