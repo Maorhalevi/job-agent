@@ -319,6 +319,69 @@ def write_excel(jobs, path=OUTPUT_FILE):
     print(f"Wrote {path} with {len(jobs)} rows")
 
 # ─────────────────────────────────────────────────────────────────
+# 6b. HTML DIGEST OUTPUT  (emailed inline by the routine)
+# ─────────────────────────────────────────────────────────────────
+HTML_FILE = "digest.html"
+
+def write_html(jobs, path=HTML_FILE):
+    """Write an email-friendly HTML digest of the matched roles.
+    Only rows meeting MIN_SCORE_PCT are passed in by main()."""
+    today = dt.date.today().strftime("%A, %d %b %Y")
+
+    if not jobs:
+        body = (
+            '<p style="font:15px/1.5 Arial,sans-serif;color:#16263F;">'
+            'No strong matches were found today — the agent ran successfully.</p>')
+    else:
+        rows = []
+        for j in jobs:
+            pct = f"{int(round(j['score']))}%"
+            link = (f'<a href="{_html.escape(j["url"], quote=True)}" '
+                    f'style="color:#1A4FD6;text-decoration:none;font-weight:bold;">'
+                    f'Open &#10140;</a>') if j.get("url") else ""
+            rows.append(
+                '<tr style="border-bottom:1px solid #E3E8EF;">'
+                f'<td style="padding:10px 12px;font-weight:bold;color:#16263F;">{_html.escape(j["company"])}</td>'
+                f'<td style="padding:10px 12px;">{_html.escape(j["title"])}</td>'
+                f'<td style="padding:10px 12px;color:#55637A;">{_html.escape(j["location"])}</td>'
+                f'<td style="padding:10px 12px;font-weight:bold;color:#1A4FD6;white-space:nowrap;">{pct}</td>'
+                f'<td style="padding:10px 12px;color:#55637A;">{_html.escape(str(j.get("why","")))}</td>'
+                f'<td style="padding:10px 12px;white-space:nowrap;">{link}</td>'
+                '</tr>')
+        body = (
+            '<table role="presentation" cellspacing="0" cellpadding="0" '
+            'style="border-collapse:collapse;width:100%;max-width:900px;'
+            'font:14px/1.45 Arial,sans-serif;color:#16263F;">'
+            '<thead><tr style="background:#16263F;color:#fff;text-align:left;">'
+            '<th style="padding:11px 12px;">Company</th>'
+            '<th style="padding:11px 12px;">Role</th>'
+            '<th style="padding:11px 12px;">Location</th>'
+            '<th style="padding:11px 12px;">Match</th>'
+            '<th style="padding:11px 12px;">Why it fits</th>'
+            '<th style="padding:11px 12px;">Apply</th>'
+            '</tr></thead><tbody>' + "".join(rows) + '</tbody></table>')
+
+    n = len(jobs)
+    heading = (f"{n} matched Product Manager role{'s' if n != 1 else ''}"
+               if n else "Daily Product Manager digest")
+    html = (
+        '<!DOCTYPE html><html><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1"></head>'
+        '<body style="margin:0;padding:24px;background:#F5F7FA;">'
+        '<div style="max-width:900px;margin:0 auto;background:#fff;border-radius:10px;'
+        'padding:24px 24px 28px;box-shadow:0 1px 4px rgba(16,38,63,.08);">'
+        f'<h1 style="font:bold 20px Arial,sans-serif;color:#16263F;margin:0 0 4px;">{heading}</h1>'
+        f'<p style="font:13px Arial,sans-serif;color:#8792A6;margin:0 0 18px;">'
+        f'Product Manager &middot; Cybersecurity / Cloud &middot; Israel &middot; {today} '
+        f'&middot; match &ge; {MIN_SCORE_PCT}%</p>'
+        f'{body}'
+        '</div></body></html>')
+
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(html)
+    print(f"Wrote {path} with {len(jobs)} rows")
+
+# ─────────────────────────────────────────────────────────────────
 # 7. MAIN
 # ─────────────────────────────────────────────────────────────────
 def main():
@@ -343,6 +406,7 @@ def main():
         print(f"Roles >= {MIN_SCORE_PCT}%: {len(jobs)}")
 
     write_excel(jobs)
+    write_html(jobs)
 
 if __name__ == "__main__":
     main()
