@@ -93,6 +93,7 @@ USE_CLAUDE = True           # AI scoring (needs ANTHROPIC_API_KEY)
 ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
 
 OUTPUT_FILE = "jobs.xlsx"
+HTML_FILE   = "digest.html"   # inline-HTML digest emailed by the routine
 
 # --- Secrets (set as environment variables in the routine) ---
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
@@ -319,6 +320,87 @@ def write_excel(jobs, path=OUTPUT_FILE):
     print(f"Wrote {path} with {len(jobs)} rows")
 
 # ─────────────────────────────────────────────────────────────────
+# 6b. HTML OUTPUT  (inline-styled digest for emailing)
+# ─────────────────────────────────────────────────────────────────
+def write_html(jobs, path=HTML_FILE):
+    """Write an email-friendly, inline-styled HTML digest of the matches.
+
+    Inline styles are used throughout because most email clients strip
+    <style> blocks. Produces a self-contained document the routine can send
+    as the message body.
+    """
+    today = dt.date.today().strftime("%A, %B %-d, %Y")
+
+    def esc(s):
+        return _html.escape(str(s or ""))
+
+    rows = ""
+    for j in jobs:
+        pct = f"{int(round(j['score']))}%"
+        link = (f'<a href="{esc(j["url"])}" '
+                f'style="color:#1A4FD6;text-decoration:none;font-weight:600;">Open &rsaquo;</a>'
+                if j.get("url") else "&mdash;")
+        contact = esc(j.get("contact") or "")
+        rows += (
+            '<tr style="border-bottom:1px solid #e5e8ee;">'
+            f'<td style="padding:10px 12px;font-weight:600;color:#16263F;">{esc(j["company"])}</td>'
+            f'<td style="padding:10px 12px;color:#16263F;">{esc(j["title"])}</td>'
+            f'<td style="padding:10px 12px;color:#555;">{esc(j["location"])}</td>'
+            f'<td style="padding:10px 12px;font-weight:700;color:#0a7d33;white-space:nowrap;">{pct}</td>'
+            f'<td style="padding:10px 12px;color:#555;">{esc(j.get("why"))}</td>'
+            f'<td style="padding:10px 12px;white-space:nowrap;">{link}</td>'
+            + (f'<td style="padding:10px 12px;color:#555;">{contact}</td>' if contact else
+               '<td style="padding:10px 12px;color:#999;">&mdash;</td>')
+            + '</tr>\n')
+
+    if jobs:
+        body = (
+            '<table role="presentation" cellpadding="0" cellspacing="0" '
+            'style="border-collapse:collapse;width:100%;font-size:14px;">'
+            '<thead><tr style="background:#16263F;color:#ffffff;text-align:left;">'
+            '<th style="padding:11px 12px;">Company</th>'
+            '<th style="padding:11px 12px;">Role</th>'
+            '<th style="padding:11px 12px;">Location</th>'
+            '<th style="padding:11px 12px;">Match</th>'
+            '<th style="padding:11px 12px;">Why it fits</th>'
+            '<th style="padding:11px 12px;">Apply</th>'
+            '<th style="padding:11px 12px;">Contact</th>'
+            '</tr></thead><tbody>' + rows + '</tbody></table>')
+        intro = (f'<p style="margin:0 0 16px;color:#16263F;font-size:15px;">'
+                 f'<strong>{len(jobs)}</strong> matching Product Manager '
+                 f'{"role" if len(jobs) == 1 else "roles"} today '
+                 f'(scored &ge; {MIN_SCORE_PCT}% against your profile).</p>')
+    else:
+        body = ('<p style="margin:0;padding:18px;background:#f5f6f9;border-radius:8px;'
+                'color:#555;font-size:15px;">No strong matches today &mdash; the agent '
+                'ran successfully but nothing cleared the '
+                f'{MIN_SCORE_PCT}% bar.</p>')
+        intro = ""
+
+    doc = (
+        '<!DOCTYPE html><html><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1"></head>'
+        '<body style="margin:0;padding:0;background:#eef1f5;">'
+        '<div style="max-width:860px;margin:0 auto;padding:24px;'
+        'font-family:Arial,Helvetica,sans-serif;">'
+        '<div style="background:#ffffff;border-radius:10px;overflow:hidden;'
+        'box-shadow:0 1px 4px rgba(0,0,0,0.08);">'
+        '<div style="background:#16263F;padding:20px 24px;">'
+        '<h1 style="margin:0;color:#ffffff;font-size:20px;">Daily PM Jobs</h1>'
+        f'<p style="margin:4px 0 0;color:#9fb0cc;font-size:13px;">{today} '
+        '&middot; Product Manager / Cybersecurity &middot; Israel</p></div>'
+        '<div style="padding:24px;">' + intro + body + '</div>'
+        '<div style="padding:14px 24px;background:#f5f6f9;color:#99a2b3;'
+        'font-size:12px;border-top:1px solid #e5e8ee;">'
+        'Generated automatically by your job agent.</div>'
+        '</div></div></body></html>')
+
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(doc)
+    print(f"Wrote {path} with {len(jobs)} job(s)")
+
+
+# ─────────────────────────────────────────────────────────────────
 # 7. MAIN
 # ─────────────────────────────────────────────────────────────────
 def main():
@@ -343,6 +425,7 @@ def main():
         print(f"Roles >= {MIN_SCORE_PCT}%: {len(jobs)}")
 
     write_excel(jobs)
+    write_html(jobs)
 
 if __name__ == "__main__":
     main()
