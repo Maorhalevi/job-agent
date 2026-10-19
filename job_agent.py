@@ -93,6 +93,7 @@ USE_CLAUDE = True           # AI scoring (needs ANTHROPIC_API_KEY)
 ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
 
 OUTPUT_FILE = "jobs.xlsx"
+OUTPUT_HTML = "digest.html"   # email-ready digest the routine sends via Gmail
 
 # --- Secrets (set as environment variables in the routine) ---
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
@@ -273,6 +274,94 @@ def score_with_keywords(jobs):
 # ─────────────────────────────────────────────────────────────────
 # 6. EXCEL OUTPUT
 # ─────────────────────────────────────────────────────────────────
+def write_html(jobs, path=OUTPUT_HTML):
+    """Write an email-ready HTML digest of today's matched roles.
+
+    Uses inline styles and a table layout so it renders consistently in
+    email clients. The routine reads this file and sends its contents
+    via the Gmail connector.
+    """
+    esc = _html.escape
+    today = dt.date.today().strftime("%A, %d %B %Y")
+
+    rows = []
+    for j in sorted(jobs, key=lambda x: x.get("score", 0), reverse=True):
+        score = j.get("score", 0)
+        url = j.get("url", "")
+        company = esc(str(j.get("company", "")))
+        title = esc(str(j.get("title", "")))
+        location = esc(str(j.get("location", "")))
+        why = esc(str(j.get("why", "")))
+        contact = esc(str(j.get("contact", "")))
+        apply_cell = (f'<a href="{esc(url)}" style="color:#1A4FD6;'
+                      f'text-decoration:none;font-weight:bold;">Open &#10140;</a>'
+                      if url else "&mdash;")
+        contact_cell = contact if contact else "&mdash;"
+        rows.append(f"""
+        <tr style="border-bottom:1px solid #e5e8ee;">
+          <td style="padding:12px 14px;font-weight:600;color:#16263F;vertical-align:top;">{company}</td>
+          <td style="padding:12px 14px;color:#16263F;vertical-align:top;">{title}</td>
+          <td style="padding:12px 14px;color:#4a5568;vertical-align:top;">{location}</td>
+          <td style="padding:12px 14px;font-weight:700;color:#1A7F37;vertical-align:top;white-space:nowrap;">{score}%</td>
+          <td style="padding:12px 14px;color:#4a5568;vertical-align:top;">{why}</td>
+          <td style="padding:12px 14px;vertical-align:top;white-space:nowrap;">{apply_cell}</td>
+          <td style="padding:12px 14px;color:#4a5568;vertical-align:top;">{contact_cell}</td>
+        </tr>""")
+
+    if jobs:
+        body = f"""
+      <p style="margin:0 0 18px;color:#4a5568;font-size:14px;">
+        {len(jobs)} Product Manager role(s) in Israel matched your profile at
+        {MIN_SCORE_PCT}% or higher today.
+      </p>
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%"
+             style="border-collapse:collapse;font-size:13px;border:1px solid #e5e8ee;">
+        <thead>
+          <tr style="background:#16263F;color:#ffffff;text-align:left;">
+            <th style="padding:12px 14px;">Company</th>
+            <th style="padding:12px 14px;">Role</th>
+            <th style="padding:12px 14px;">Location</th>
+            <th style="padding:12px 14px;">Match&nbsp;%</th>
+            <th style="padding:12px 14px;">Why it fits</th>
+            <th style="padding:12px 14px;">Apply</th>
+            <th style="padding:12px 14px;">Contact</th>
+          </tr>
+        </thead>
+        <tbody>{''.join(rows)}
+        </tbody>
+      </table>"""
+    else:
+        body = """
+      <p style="margin:0;color:#4a5568;font-size:14px;">
+        No strong matches today &mdash; the agent ran successfully but found no
+        Product Manager roles at or above the match threshold.
+      </p>"""
+
+    doc = f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Daily PM jobs &mdash; {today}</title>
+</head>
+<body style="margin:0;padding:24px;background:#f4f6fa;font-family:Arial,Helvetica,sans-serif;">
+  <div style="max-width:980px;margin:0 auto;background:#ffffff;border-radius:10px;
+              padding:28px 30px;border:1px solid #e5e8ee;">
+    <h1 style="margin:0 0 4px;font-size:20px;color:#16263F;">Daily PM Jobs &mdash; Cybersecurity / Israel</h1>
+    <p style="margin:0 0 20px;color:#8a94a6;font-size:13px;">{today}</p>
+    {body}
+    <p style="margin:22px 0 0;color:#a0aabb;font-size:11px;border-top:1px solid #e5e8ee;padding-top:14px;">
+      Generated automatically by your Daily PM Job Hunt routine.
+    </p>
+  </div>
+</body>
+</html>"""
+
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(doc)
+    print(f"Wrote {path} with {len(jobs)} rows")
+
+
 def write_excel(jobs, path=OUTPUT_FILE):
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -342,7 +431,11 @@ def main():
         jobs = [j for j in jobs if j["score"] >= MIN_SCORE_PCT]
         print(f"Roles >= {MIN_SCORE_PCT}%: {len(jobs)}")
 
-    write_excel(jobs)
+    write_html(jobs)
+    try:
+        write_excel(jobs)
+    except Exception as e:
+        print(f"Excel write skipped: {e}")
 
 if __name__ == "__main__":
     main()
