@@ -1,0 +1,9 @@
+# Generated daily run artifacts (regenerated on every run, not source)
+jobs.xlsx
+digest.html
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
