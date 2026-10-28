@@ -1,0 +1,7 @@
+# Generated per-run outputs
+digest.html
+jobs.xlsx
+
+# Python
+__pycache__/
+*.pyc
