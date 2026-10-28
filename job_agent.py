@@ -273,8 +273,80 @@ def score_with_keywords(jobs):
 # ─────────────────────────────────────────────────────────────────
 # 6. EXCEL OUTPUT
 # ─────────────────────────────────────────────────────────────────
+DIGEST_FILE = "digest.html"
+
+
+def write_digest_html(jobs, path=DIGEST_FILE):
+    """Write today's matched PM roles as a self-contained HTML digest."""
+    today = dt.date.today().strftime("%A, %d %B %Y")
+
+    def esc(s):
+        return _html.escape(str(s or ""))
+
+    rows = []
+    for j in jobs:
+        url = esc(j.get("url", ""))
+        link = (f'<a href="{url}" style="color:#1a4fd6;text-decoration:none;">Open ➜</a>'
+                if j.get("url") else "")
+        contact = esc(j.get("contact", "")) or "—"
+        rows.append(f"""
+        <tr>
+          <td style="padding:10px 12px;border-bottom:1px solid #eee;font-weight:600;">{esc(j.get('company'))}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #eee;">{esc(j.get('title'))}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #eee;color:#555;">{esc(j.get('location'))}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #eee;text-align:center;font-weight:700;color:#16263f;">{esc(j.get('score'))}%</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #eee;color:#444;">{esc(j.get('why'))}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #eee;">{link}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #eee;color:#555;">{contact}</td>
+        </tr>""")
+
+    if jobs:
+        table = f"""
+    <table style="border-collapse:collapse;width:100%;font-size:14px;">
+      <thead>
+        <tr style="background:#16263f;color:#fff;text-align:left;">
+          <th style="padding:10px 12px;">Company</th>
+          <th style="padding:10px 12px;">Role</th>
+          <th style="padding:10px 12px;">Location</th>
+          <th style="padding:10px 12px;text-align:center;">Match&nbsp;%</th>
+          <th style="padding:10px 12px;">Why it fits</th>
+          <th style="padding:10px 12px;">Apply</th>
+          <th style="padding:10px 12px;">Contact</th>
+        </tr>
+      </thead>
+      <tbody>{''.join(rows)}
+      </tbody>
+    </table>"""
+        intro = f"<p style='color:#444;'>{len(jobs)} strong Product Manager match(es) found today.</p>"
+    else:
+        table = ("<p style='color:#444;'>No strong matches today — "
+                 "the agent ran successfully but nothing cleared the "
+                 f"{MIN_SCORE_PCT}% bar.</p>")
+        intro = ""
+
+    doc = f"""<!doctype html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family:Arial,Helvetica,sans-serif;background:#f6f7f9;margin:0;padding:24px;">
+  <div style="max-width:900px;margin:0 auto;background:#fff;border-radius:8px;padding:24px;">
+    <h2 style="color:#16263f;margin:0 0 4px;">Daily PM Jobs</h2>
+    <p style="color:#888;margin:0 0 16px;">{today}</p>
+    {intro}
+    {table}
+  </div>
+</body>
+</html>"""
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(doc)
+    print(f"Wrote {path} with {len(jobs)} rows")
+
+
 def write_excel(jobs, path=OUTPUT_FILE):
-    from openpyxl import Workbook
+    try:
+        from openpyxl import Workbook
+    except ModuleNotFoundError:
+        print("openpyxl not installed — skipping Excel output.")
+        return
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     wb = Workbook(); ws = wb.active; ws.title = "Matches"
     headers = ["Company", "Role", "Location", "Match %", "Why it fits",
@@ -342,6 +414,7 @@ def main():
         jobs = [j for j in jobs if j["score"] >= MIN_SCORE_PCT]
         print(f"Roles >= {MIN_SCORE_PCT}%: {len(jobs)}")
 
+    write_digest_html(jobs)
     write_excel(jobs)
 
 if __name__ == "__main__":
