@@ -319,6 +319,83 @@ def write_excel(jobs, path=OUTPUT_FILE):
     print(f"Wrote {path} with {len(jobs)} rows")
 
 # ─────────────────────────────────────────────────────────────────
+# 6b. HTML DIGEST OUTPUT  (emailed by the routine)
+# ─────────────────────────────────────────────────────────────────
+HTML_OUTPUT_FILE = "digest.html"
+
+def write_html(jobs, path=HTML_OUTPUT_FILE):
+    """Write an email-friendly HTML digest of today's matched roles.
+    Uses inline styles so it renders well in email clients."""
+    today = dt.date.today().strftime("%A, %d %b %Y")
+
+    def esc(s):
+        return _html.escape(str(s or ""))
+
+    rows = []
+    for j in jobs:
+        pct = int(round(j.get("score", 0)))
+        link = esc(j["url"])
+        rows.append(f"""
+      <tr>
+        <td style="padding:12px 14px;border-bottom:1px solid #e6e8ec;vertical-align:top;">
+          <div style="font-weight:600;color:#16263f;font-size:15px;">{esc(j['title'])}</div>
+          <div style="color:#5a6577;font-size:13px;margin-top:2px;">{esc(j['company'])} &middot; {esc(j['location'])}</div>
+          <div style="color:#7a8494;font-size:12px;margin-top:4px;">{esc(j.get('why',''))}</div>
+        </td>
+        <td style="padding:12px 14px;border-bottom:1px solid #e6e8ec;vertical-align:top;text-align:center;white-space:nowrap;">
+          <span style="display:inline-block;background:#eef3ff;color:#1a4fd6;font-weight:700;font-size:14px;padding:4px 10px;border-radius:12px;">{pct}%</span>
+        </td>
+        <td style="padding:12px 14px;border-bottom:1px solid #e6e8ec;vertical-align:top;text-align:center;white-space:nowrap;">
+          <a href="{link}" style="display:inline-block;background:#16263f;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;padding:7px 14px;border-radius:6px;">Apply &rsaquo;</a>
+        </td>
+      </tr>""")
+
+    if jobs:
+        body = f"""
+    <table role="presentation" cellspacing="0" cellpadding="0" width="100%" style="border-collapse:collapse;border:1px solid #e6e8ec;border-radius:8px;overflow:hidden;">
+      <thead>
+        <tr style="background:#16263f;">
+          <th align="left" style="padding:10px 14px;color:#ffffff;font-size:12px;letter-spacing:.04em;text-transform:uppercase;">Role</th>
+          <th style="padding:10px 14px;color:#ffffff;font-size:12px;letter-spacing:.04em;text-transform:uppercase;">Match</th>
+          <th style="padding:10px 14px;color:#ffffff;font-size:12px;letter-spacing:.04em;text-transform:uppercase;">Link</th>
+        </tr>
+      </thead>
+      <tbody>{''.join(rows)}
+      </tbody>
+    </table>"""
+        summary = f"{len(jobs)} matching role{'s' if len(jobs) != 1 else ''} today."
+    else:
+        body = """
+    <p style="color:#5a6577;font-size:15px;padding:24px 0;text-align:center;">
+      No strong matches were found today — the agent ran successfully.
+    </p>"""
+        summary = "No strong matches today."
+
+    doc = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily PM jobs — {esc(today)}</title>
+</head>
+<body style="margin:0;padding:24px;background:#f4f6f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+  <div style="max-width:720px;margin:0 auto;background:#ffffff;border-radius:10px;padding:28px;box-shadow:0 1px 3px rgba(16,38,63,.08);">
+    <h1 style="margin:0 0 4px;color:#16263f;font-size:20px;">Daily PM jobs</h1>
+    <div style="color:#7a8494;font-size:13px;margin-bottom:4px;">{esc(today)}</div>
+    <div style="color:#5a6577;font-size:14px;margin-bottom:20px;">{esc(summary)}</div>
+    {body}
+    <p style="color:#aab2bf;font-size:11px;margin-top:24px;text-align:center;">
+      Automated digest &middot; Product Manager / Cybersecurity &middot; Israel focus
+    </p>
+  </div>
+</body>
+</html>"""
+
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(doc)
+    print(f"Wrote {path} with {len(jobs)} rows")
+
+# ─────────────────────────────────────────────────────────────────
 # 7. MAIN
 # ─────────────────────────────────────────────────────────────────
 def main():
@@ -343,6 +420,7 @@ def main():
         print(f"Roles >= {MIN_SCORE_PCT}%: {len(jobs)}")
 
     write_excel(jobs)
+    write_html(jobs)
 
 if __name__ == "__main__":
     main()
