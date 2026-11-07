@@ -319,6 +319,67 @@ def write_excel(jobs, path=OUTPUT_FILE):
     print(f"Wrote {path} with {len(jobs)} rows")
 
 # ─────────────────────────────────────────────────────────────────
+# 6b. HTML DIGEST OUTPUT  (emailed by the routine)
+# ─────────────────────────────────────────────────────────────────
+HTML_FILE = "digest.html"
+
+def write_html(jobs, path=HTML_FILE):
+    """Render matched jobs as a self-contained HTML digest for email."""
+    today = dt.date.today().strftime("%A, %B %-d, %Y")
+    esc = _html.escape
+
+    def row(j):
+        url = j.get("url", "")
+        title = esc(j.get("title", ""))
+        link = (f'<a href="{esc(url)}" style="color:#1A4FD6;text-decoration:none;font-weight:600;">{title} &rsaquo;</a>'
+                if url else f'<span style="font-weight:600;">{title}</span>')
+        contact = esc(j.get("contact", "")) or "&mdash;"
+        return f"""
+        <tr>
+          <td style="padding:12px 14px;border-bottom:1px solid #ECECEC;vertical-align:top;">
+            <div style="font-size:15px;color:#16263F;">{link}</div>
+            <div style="font-size:13px;color:#555;margin-top:3px;">{esc(j.get('company',''))} &middot; {esc(j.get('location',''))}</div>
+            <div style="font-size:12px;color:#777;margin-top:4px;">{esc(j.get('why',''))}</div>
+          </td>
+          <td style="padding:12px 14px;border-bottom:1px solid #ECECEC;vertical-align:top;text-align:right;white-space:nowrap;">
+            <span style="display:inline-block;background:#16263F;color:#fff;border-radius:12px;padding:3px 10px;font-size:13px;font-weight:600;">{int(j.get('score',0))}%</span>
+            <div style="font-size:12px;color:#777;margin-top:6px;">{contact}</div>
+          </td>
+        </tr>"""
+
+    if jobs:
+        rows = "".join(row(j) for j in jobs)
+        body = f"""
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+               style="border-collapse:collapse;border:1px solid #ECECEC;border-radius:8px;overflow:hidden;">
+          {rows}
+        </table>"""
+        summary = f"{len(jobs)} strong match{'es' if len(jobs) != 1 else ''} found today."
+    else:
+        body = """<p style="font-size:15px;color:#555;">No strong matches today — the agent ran successfully but nothing cleared the match threshold.</p>"""
+        summary = "No strong matches found today."
+
+    doc = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#F5F6F8;font-family:Arial,Helvetica,sans-serif;">
+  <div style="max-width:640px;margin:0 auto;padding:24px 16px;">
+    <div style="background:#16263F;color:#fff;border-radius:8px;padding:20px 22px;margin-bottom:18px;">
+      <div style="font-size:18px;font-weight:700;">Daily PM Jobs &middot; Product Manager / Cybersecurity</div>
+      <div style="font-size:13px;color:#C7D0DE;margin-top:4px;">{today} &middot; Israel focus</div>
+    </div>
+    <p style="font-size:14px;color:#333;margin:0 0 16px;">{summary}</p>
+    {body}
+    <p style="font-size:11px;color:#999;margin-top:22px;">Generated automatically by your daily job agent.</p>
+  </div>
+</body>
+</html>"""
+
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(doc)
+    print(f"Wrote {path} with {len(jobs)} job(s)")
+
+# ─────────────────────────────────────────────────────────────────
 # 7. MAIN
 # ─────────────────────────────────────────────────────────────────
 def main():
@@ -342,7 +403,11 @@ def main():
         jobs = [j for j in jobs if j["score"] >= MIN_SCORE_PCT]
         print(f"Roles >= {MIN_SCORE_PCT}%: {len(jobs)}")
 
-    write_excel(jobs)
+    write_html(jobs)
+    try:
+        write_excel(jobs)
+    except Exception as e:
+        print(f"Excel output skipped: {e}")
 
 if __name__ == "__main__":
     main()
