@@ -1,0 +1,7 @@
+# Python bytecode cache
+__pycache__/
+*.pyc
+
+# Generated daily outputs
+digest.html
+jobs.xlsx
