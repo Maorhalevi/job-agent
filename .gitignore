@@ -1,0 +1,7 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Generated job-agent outputs
+digest.html
+jobs.xlsx
